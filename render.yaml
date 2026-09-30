@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: ctrl-freak
+    runtime: docker
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: NVIDIA_API_KEY
+        sync: false   # set in the Render dashboard — never committed

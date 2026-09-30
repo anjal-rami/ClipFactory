@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>ctrl_freak — Qoneqt video pipeline</title>
+<style>
+ body{font-family:Segoe UI,system-ui,sans-serif;background:#17112e;color:#eae6ff;display:flex;justify-content:center;padding:48px 16px}
+ main{width:min(640px,92vw)}
+ input{width:68%;padding:12px;border-radius:10px;border:1px solid #4a3c8f;background:#1d1738;color:#fff}
+ button{padding:12px 18px;border:0;border-radius:10px;background:#7c5cff;color:#fff;font-weight:600;cursor:pointer}
+ .stage{padding:8px 12px;background:#1d1738;border-radius:8px;margin-top:8px}
+ video{width:min(300px,80vw);border-radius:14px;margin-top:20px}
+ .err{color:#fca5a5}
+</style></head>
+<body><main>
+<h1>ctrl_freak</h1>
+<p>Type any topic → get a 9:16 video for the Qoneqt Global Feed.</p>
+<input id="topic" placeholder="e.g. Why India loves chai">
+<button onclick="go()">Generate</button>
+<div class="stage" id="log">idle</div>
+<div id="player" style="display:none"><video id="vid" controls playsinline></video><br><a id="dl" href="#">Download MP4</a></div>
+<script>
+async function go(){
+ const t=document.getElementById("topic").value.trim(); if(!t)return;
+ const log=document.getElementById("log"); log.textContent="starting job…";
+ const r=await fetch("/api/jobs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({topic:t})});
+ const job=await r.json();
+ const timer=setInterval(async()=>{
+  const j=await(await fetch("/api/jobs/"+job.id)).json();
+  log.textContent=j.status+" | "+JSON.stringify(j.stages)+(j.error?" — "+j.error:"");
+  if(j.status==="done"||j.status==="failed"){
+   clearInterval(timer);
+   if(j.status==="done"){document.getElementById("vid").src=j.video_url;document.getElementById("dl").href=j.video_url;document.getElementById("player").style.display="block";}
+  }
+ },2000);
+}
+</script>
+</main></body>
+</html>

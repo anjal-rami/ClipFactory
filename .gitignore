@@ -1,0 +1,15 @@
+# secrets - never commit
+.env
+
+# generated assets
+output/
+__pycache__/
+*.pyc
+
+# later stages
+node_modules/
+.venv/
+
+# portable ffmpeg binaries
+tools/
+.mimosa/
