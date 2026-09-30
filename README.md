@@ -4,6 +4,8 @@
 any topic, prompt, idea, or trend into a publish-ready vertical video for the
 Qoneqt Global Feed — repeatably, at scale.
 
+**🔴 Live demo:** https://ctrl-freak-i4bs.onrender.com *(free tier — sleeps when idle, first request wakes it in ~1 min)*
+
 ## Pipeline
 
 ```
@@ -44,6 +46,14 @@ ctrl_freak/
 ├── .env                   # API keys (gitignored — never commit)
 └── README.md
 ```
+
+## Known limitations
+
+- **No auth on the API** — anyone with a job ID can view that job's status, and
+  generated videos are publicly served. Fine for this demo; add authentication
+  before real use (flagged as inconclusive by the Mimosa deep security scan).
+- **Free-tier hosting** — the service sleeps after ~15 min idle (first request
+  wakes it in ~1 min) and `output/` is ephemeral: videos regenerate per job.
 
 ## Setup
 
