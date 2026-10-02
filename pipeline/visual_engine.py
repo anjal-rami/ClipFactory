@@ -163,6 +163,9 @@ def generate_images(script_path: Path, backend: str = "auto") -> dict:
 
     for idx, scene in enumerate(scenes, 1):
         prompt = scene.get("image_prompt")
+        style = script.get("visual_style") or "cinematic photograph, rich colour grade, soft dramatic lighting, high detail, consistent look across all scenes"
+        if style:
+            prompt = f"{style}. {prompt}"
         if not prompt:
             print(f"[{idx}/{len(scenes)}] scene {idx}: SKIPPED (no image_prompt)")
             manifest["scenes"].append({"scene": idx, "status": "skipped"})

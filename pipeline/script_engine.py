@@ -44,6 +44,7 @@ SCHEMA_EXAMPLE = {
         }
     ],
     "cta": "closing line inviting viewers to join Qoneqt",
+    "visual_style": "one English sentence: the single visual style (palette, lighting, mood) shared by ALL scenes",
     "hashtags": ["#example"],
 }
 
@@ -73,6 +74,9 @@ Rules:
 - on_screen_text: short caption for that scene, max 6 words.
 - The final CTA invites viewers to join the conversation on Qoneqt.
 - 3-5 relevant hashtags.
+- visual_style: one short English sentence describing ONE consistent look for every
+  scene of this video — colour palette, lighting and mood matched to the topic.
+  It is prepended to each scene's image prompt so the video feels like one film.
 
 Begin your reply with '{' and end with '}'. Do not explain, do not restate these
 requirements, do not plan out loud — reply with the finished JSON object only.
