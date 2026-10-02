@@ -31,15 +31,17 @@ try:  # single source of truth for output resolution (visual engine owns it)
     from visual_engine import TARGET_H as H, TARGET_W as W
 except ImportError:  # package import (web app)
     from pipeline.visual_engine import TARGET_H as H, TARGET_W as W
-FONTSIZE = int(54 * H / 1280)          # caption sizes scale with resolution
-BOXBORDER = int(16 * H / 1280)
-CAPTION_MARGIN = int(140 * H / 1280)
+FONTSIZE = int(58 * H / 1280)          # caption sizes scale with resolution
+BORDERW = int(9 * H / 1280)            # caption outline (modern shorts style)
+SHADOWY = int(8 * H / 1280)
+CAPTION_MARGIN = int(320 * H / 1280)   # lower-middle third: above platform UI overlays
 PAD_SECONDS = 0.5      # breathing room after each voice clip
 ZOOM_AMOUNT = 0.10     # 10% Ken Burns travel
 FONT = "C:/Windows/Fonts/arialbd.ttf"
 # Devanagari captions need a font with Hindi glyphs (arialbd has none).
 # Bundled Noto font first: identical rendering on Windows and in the Docker image.
 DEVANAGARI_FONTS = (
+    str(PROJECT_ROOT / "assets" / "fonts" / "NotoSansDevanagari-Bold.ttf"),
     str(PROJECT_ROOT / "assets" / "fonts" / "NotoSansDevanagari-Regular.ttf"),
     "C:/Windows/Fonts/Nirmala.ttc",
     "/usr/share/fonts/truetype/noto/NotoSansDevanagari-Regular.ttf",
@@ -75,7 +77,7 @@ def esc_drawtext(text: str) -> str:
     return text.replace("\\", "\\\\").replace(":", "\\:").replace("'", "\u2019").replace("%", "\\%")
 
 
-def wrap_text(text: str, width: int = 20, max_lines: int = 3) -> str:
+def wrap_text(text: str, width: int = 22, max_lines: int = 3) -> str:
     """Greedy word wrap; drawtext has no auto-wrap."""
     words, lines, cur = text.split(), [], ""
     for w in words:
@@ -115,8 +117,9 @@ def build_clip(ffmpeg: str, img: Path, audio: Path, out: Path, dur: float, capti
         f"zoompan=z='{z}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
         f"d={frames}:s={W}x{H}:fps={FPS},"
         f"drawtext=fontfile='{font_escaped}':text='{caption}':"
-        f"fontsize={FONTSIZE}:fontcolor=white:box=1:boxcolor=black@0.45:boxborderw={BOXBORDER}:"
-        f"text_align=center:line_spacing=8:x=(w-text_w)/2:y=h-text_h-{CAPTION_MARGIN},"
+        f"fontsize={FONTSIZE}:fontcolor=white:bordercolor=black@0.85:borderw={BORDERW}:"
+        f"shadowcolor=black@0.5:shadowx=0:shadowy={SHADOWY}:"
+        f"text_align=center:line_spacing=10:x=(w-text_w)/2:y=h-text_h-{CAPTION_MARGIN},"
         f"fade=t=in:st=0:d=0.25,fade=t=out:st={max(dur - 0.3, 0):.2f}:d=0.3,format=yuv420p"
     )
     run([
