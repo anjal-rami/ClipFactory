@@ -3,7 +3,7 @@
 <head><meta charset="utf-8"><title>ctrl_freak — AI video pipeline for Qoneqt</title>
 <style>
  body{font-family:Segoe UI,system-ui,sans-serif;background:#0B0F14;color:#E6EDF3;display:flex;justify-content:center;padding:48px 16px}
- main{width:min(680px,94vw)}
+ main{width:min(720px,94vw)}
  h1{font-size:1.5rem;margin:0 0 4px}
  h1 span{color:#14B8A6}
  p.sub{color:#8B949E;margin:0 0 16px;font-size:.92rem}
@@ -11,7 +11,26 @@
  select{margin-top:10px;padding:10px;border-radius:10px;border:1px solid #1F2A33;background:#131A22;color:#E6EDF3;cursor:pointer}
  button{margin-top:10px;padding:12px 18px;border:0;border-radius:10px;background:#14B8A6;color:#04231F;font-weight:700;cursor:pointer;width:100%;font-size:1rem}
  button:disabled{opacity:.5;cursor:default}
- .stage{padding:8px 12px;background:#131A22;border-radius:8px;margin-top:8px;white-space:pre-wrap;font-size:.9rem}
+ #cards{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+ .pcard{flex:1;min-width:150px;background:#131A22;border:1px solid #1F2A33;border-radius:12px;padding:12px 14px;transition:border-color .3s, background .3s}
+ .pc-top{display:flex;align-items:center;justify-content:space-between}
+ .pc-dot{width:10px;height:10px;border-radius:50%;background:#3a4650}
+ .pc-num{font-size:.72rem;color:#3a4650;font-weight:700;letter-spacing:1px}
+ .pc-name{font-size:1rem;font-weight:700;margin-top:8px;color:#E6EDF3}
+ .pc-desc{font-size:.75rem;color:#8B949E;margin-top:2px;min-height:2em}
+ .pc-state{font-size:.72rem;margin-top:8px;color:#8B949E;font-weight:600;letter-spacing:.4px}
+ .pcard.pending .pc-state{color:#8B949E}
+ .pcard.running{border-color:#FFC857;background:#1d1a22}
+ .pcard.running .pc-dot{background:#FFC857;animation:pulse .7s infinite alternate}
+ .pcard.running .pc-state{color:#FFC857}
+ .pcard.done{border-color:#34D399}
+ .pcard.done .pc-dot{background:#34D399}
+ .pcard.done .pc-state{color:#34D399}
+ .pcard.failed{border-color:#F87171;background:#1d1420}
+ .pcard.failed .pc-dot{background:#F87171}
+ .pcard.failed .pc-state{color:#F87171}
+ @keyframes pulse{from{opacity:.35}to{opacity:1}}
+ .stage{padding:8px 12px;background:#131A22;border-radius:8px;margin-top:14px;white-space:pre-wrap;font-size:.85rem}
  video{width:min(320px,80vw);border-radius:14px;margin-top:20px}
  .err{color:#F87171}
  a.dash{color:#14B8A6;font-size:.9rem}
@@ -23,12 +42,50 @@
 <textarea id="topics" rows="3" placeholder="Why India loves chai&#10;5 study hacks for exams"></textarea><br>
 <select id="lang"><option value="English">English</option><option value="Hindi">हिन्दी</option></select>
 <button id="go" onclick="go()">Generate</button>
+
+<div id="cards">
+ <div class="pcard pending" id="c-script">
+  <div class="pc-top"><span class="pc-dot"></span><span class="pc-num">01</span></div>
+  <div class="pc-name">Script</div>
+  <div class="pc-desc">LLM writes the story</div>
+  <div class="pc-state">waiting</div>
+ </div>
+ <div class="pcard pending" id="c-visuals">
+  <div class="pc-top"><span class="pc-dot"></span><span class="pc-num">02</span></div>
+  <div class="pc-name">Visuals</div>
+  <div class="pc-desc">AI paints the scenes</div>
+  <div class="pc-state">waiting</div>
+ </div>
+ <div class="pcard pending" id="c-voice">
+  <div class="pc-top"><span class="pc-dot"></span><span class="pc-num">03</span></div>
+  <div class="pc-name">Voiceover</div>
+  <div class="pc-desc">Neural narration</div>
+  <div class="pc-state">waiting</div>
+ </div>
+ <div class="pcard pending" id="c-compose">
+  <div class="pc-top"><span class="pc-dot"></span><span class="pc-num">04</span></div>
+  <div class="pc-name">Composition</div>
+  <div class="pc-desc">FFmpeg edits + music</div>
+  <div class="pc-state">waiting</div>
+ </div>
+</div>
+<div class="err" id="joberr"></div>
 <div class="stage" id="log">idle</div>
 <div id="links"></div>
 <div id="player" style="display:none"><video id="vid" controls playsinline></video><br><a id="dl" class="vlink" href="#">Download MP4</a></div>
 </main>
 <script>
 const STAGES=["script","visuals","voice","compose"];
+STAGES.forEach(s=>{
+ const el=document.getElementById("c-"+s);
+ el.dataset.label=el.querySelector(".pc-state").textContent;
+});
+const STATE_TEXT={pending:"waiting",running:"working…",done:"✓ done",failed:"✗ failed"};
+function setStage(s,state){
+ const el=document.getElementById("c-"+s);
+ el.className="pcard "+state;
+ el.querySelector(".pc-state").textContent=STATE_TEXT[state]||state;
+}
 function fmt(j){
  return (j.topic||j.id).slice(0,34)+" — "+j.status+" "+
   "["+STAGES.map(s=>(j.stages&&j.stages[s]?j.stages[s][0].toUpperCase():"p")).join("")+"]"+
@@ -40,8 +97,10 @@ async function go(){
  const lang=document.getElementById("lang").value;
  const btn=document.getElementById("go"); btn.disabled=true; btn.textContent="Working…";
  const log=document.getElementById("log"); log.textContent="queuing "+lines.length+" job(s)…";
+ document.getElementById("joberr").textContent="";
  document.getElementById("links").textContent="";
  document.getElementById("player").style.display="none";
+ STAGES.forEach(s=>setStage(s,"pending"));
  try{
   const url=lines.length===1?"/api/jobs":"/api/jobs/batch";
   const payload=lines.length===1?{topic:lines[0],language:lang}:{topics:lines,language:lang};
@@ -51,14 +110,27 @@ async function go(){
   const jobs=Array.isArray(data.jobs)?data.jobs:[data];
   const ids=jobs.map(j=>j.id);
   const timer=setInterval(async()=>{
-   let done=0, failed=0, lastVideo=null; const states=[];
+   let done=0, failed=0, lastVideo=null; const states=[]; const agg={};
    for(const id of ids){
     const j=await(await fetch("/api/jobs/"+id)).json();
     states.push(fmt(j));
+    for(const s of STAGES){
+     const st=(j.stages&&j.stages[s])||"pending";
+     agg[s]=agg[s]||[];
+     agg[s].push(st);
+    }
     if(j.status==="done"){done++;lastVideo=j.video_url;}
     else if(j.status==="failed")failed++;
    }
    log.textContent="progress: "+(done+failed)+"/"+ids.length+" finished\n"+states.join("\n");
+   for(const s of STAGES){
+    const list=agg[s]||[];
+    let state="pending";
+    if(list.includes("running")) state="running";
+    else if(list.length&&list.every(x=>x==="done")) state="done";
+    else if(list.includes("failed")) state="failed";
+    setStage(s,state);
+   }
    if(done+failed===ids.length){
     clearInterval(timer); btn.disabled=false; btn.textContent="Generate";
     if(done>0){
@@ -80,7 +152,7 @@ async function go(){
    }
   },2500);
  }catch(err){
-  log.textContent="error: "+err.message;
+  document.getElementById("joberr").textContent=err.message;
   btn.disabled=false; btn.textContent="Generate";
  }
 }
