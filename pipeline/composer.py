@@ -27,7 +27,13 @@ OUTPUT_ROOT = PROJECT_ROOT / "output" / "videos"
 TOOLS_DIR = PROJECT_ROOT / "tools"
 
 FPS = 30
-W, H = 720, 1280
+try:  # single source of truth for output resolution (visual engine owns it)
+    from visual_engine import TARGET_H as H, TARGET_W as W
+except ImportError:  # package import (web app)
+    from pipeline.visual_engine import TARGET_H as H, TARGET_W as W
+FONTSIZE = int(54 * H / 1280)          # caption sizes scale with resolution
+BOXBORDER = int(16 * H / 1280)
+CAPTION_MARGIN = int(140 * H / 1280)
 PAD_SECONDS = 0.5      # breathing room after each voice clip
 ZOOM_AMOUNT = 0.10     # 10% Ken Burns travel
 FONT = "C:/Windows/Fonts/arialbd.ttf"
@@ -109,8 +115,9 @@ def build_clip(ffmpeg: str, img: Path, audio: Path, out: Path, dur: float, capti
         f"zoompan=z='{z}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
         f"d={frames}:s={W}x{H}:fps={FPS},"
         f"drawtext=fontfile='{font_escaped}':text='{caption}':"
-        f"fontsize=54:fontcolor=white:box=1:boxcolor=black@0.45:boxborderw=16:"
-        f"text_align=center:line_spacing=8:x=(w-text_w)/2:y=h-text_h-140,format=yuv420p"
+        f"fontsize={FONTSIZE}:fontcolor=white:box=1:boxcolor=black@0.45:boxborderw={BOXBORDER}:"
+        f"text_align=center:line_spacing=8:x=(w-text_w)/2:y=h-text_h-{CAPTION_MARGIN},"
+        f"fade=t=in:st=0:d=0.25,fade=t=out:st={max(dur - 0.3, 0):.2f}:d=0.3,format=yuv420p"
     )
     run([
         ffmpeg, "-y", "-i", str(img), "-i", str(audio),
@@ -152,13 +159,37 @@ def compose(slug: str) -> Path:
     list_file = video_dir / "clips.txt"
     list_file.write_text("".join(f"file '{c.name}'\n" for c in clips), encoding="utf-8")
     final = video_dir / "final.mp4"
+    raw = video_dir / "final_raw.mp4"
     print("concatenating...")
     run([
         ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", str(list_file),
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
-        "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-movflags", "+faststart",
-        str(final),
+        "-c:a", "aac", "-b:a", "128k", "-ar", "44100",
+        str(raw),
     ])
+
+    # Optional music bed: drop any licensed track at assets/music/bed.mp3 and it
+    # is looped under the voiceover at low volume with a fade-out at the end.
+    bed = PROJECT_ROOT / "assets" / "music" / "bed.mp3"
+    if bed.exists():
+        probe = subprocess.run(
+            [ffprobe, "-v", "error", "-show_entries", "format=duration", "-of", "json", str(raw)],
+            capture_output=True, text=True, check=True, shell=False,
+        )
+        total = float(json.loads(probe.stdout)["format"]["duration"])
+        print(f"mixing music bed under {total:.1f}s of video...")
+        run([
+            ffmpeg, "-y", "-i", str(raw), "-stream_loop", "-1", "-i", str(bed),
+            "-filter_complex",
+            f"[1:a]volume=0.12,afade=t=out:st={max(total - 1.5, 0):.2f}:d=1.5[bed];"
+            f"[0:a][bed]amix=inputs=2:duration=first:dropout_transition=0[a]",
+            "-map", "0:v", "-map", "[a]",
+            "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart",
+            str(final),
+        ])
+        raw.unlink()
+    else:
+        os.replace(raw, final)
 
     probe = subprocess.run(
         [ffprobe, "-v", "error", "-show_entries", "format=duration,size", "-of", "json", str(final)],

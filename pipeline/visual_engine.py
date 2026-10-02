@@ -40,7 +40,7 @@ from PIL import Image, ImageOps
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_ROOT = PROJECT_ROOT / "output" / "videos"
 
-TARGET_W, TARGET_H = 720, 1280  # exact 9:16
+TARGET_W, TARGET_H = 1080, 1920  # exact 9:16, full-HD vertical
 
 FLUX_URL = "https://ai.api.nvidia.com/v1/genai/black-forest-labs/flux.1-dev"
 
