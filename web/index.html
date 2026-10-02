@@ -61,14 +61,14 @@ async function go(){
    if(done+failed===ids.length){
     clearInterval(timer); btn.disabled=false; btn.textContent="Generate";
     if(done>0){
-     document.getElementById("vid").src=lastVideo;
-     document.getElementById("dl").href=lastVideo;
+     document.getElementById("vid").src=lastVideo+"?t="+Date.now();
+     document.getElementById("dl").href=lastVideo+"?t="+Date.now();
      document.getElementById("player").style.display="block";
      const links=document.getElementById("links");
      for(const id of ids){
       const j=await(await fetch("/api/jobs/"+id)).json();
       if(j.status==="done"&&j.video_url){
-       const a=document.createElement("a"); a.href=j.video_url; a.className="vlink";
+       const a=document.createElement("a"); a.href=j.video_url+"?t="+Date.now(); a.className="vlink";
        a.textContent="▶ "+(j.topic||id); links.appendChild(a);
       }
      }

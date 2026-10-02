@@ -46,7 +46,7 @@ function render(jobs){
   cell(tr,j.status,st);
   cell(tr,STAGES.map(s=>(j.stages&&j.stages[s]?j.stages[s][0].toUpperCase():"p")).join(""));
   if(j.status==="done"&&j.video_url){
-   const a=document.createElement("a"); a.href=j.video_url; a.textContent="watch";
+   const a=document.createElement("a"); a.href=j.video_url+"?t="+Date.now(); a.textContent="watch";
    const td=document.createElement("td"); td.appendChild(a); tr.appendChild(td);
   } else cell(tr,"—");
   rows.appendChild(tr);

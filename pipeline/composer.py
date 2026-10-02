@@ -185,7 +185,7 @@ def compose(slug: str) -> Path:
             ffmpeg, "-y", "-i", str(raw), "-stream_loop", "-1", "-i", str(bed),
             "-filter_complex",
             f"[1:a]volume=0.12,afade=t=out:st={max(total - 1.5, 0):.2f}:d=1.5[bed];"
-            f"[0:a][bed]amix=inputs=2:duration=first:dropout_transition=0[a]",
+            f"[0:a][bed]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]",
             "-map", "0:v", "-map", "[a]",
             "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-ac", "2", "-movflags", "+faststart",
             str(final),
