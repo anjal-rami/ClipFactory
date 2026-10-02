@@ -3,37 +3,83 @@
 <head><meta charset="utf-8"><title>ctrl_freak — Qoneqt video pipeline</title>
 <style>
  body{font-family:Segoe UI,system-ui,sans-serif;background:#17112e;color:#eae6ff;display:flex;justify-content:center;padding:48px 16px}
- main{width:min(640px,92vw)}
- input{width:68%;padding:12px;border-radius:10px;border:1px solid #4a3c8f;background:#1d1738;color:#fff}
- select{padding:12px;border-radius:10px;border:1px solid #4a3c8f;background:#1d1738;color:#fff;cursor:pointer}
- button{padding:12px 18px;border:0;border-radius:10px;background:#7c5cff;color:#fff;font-weight:600;cursor:pointer}
- .stage{padding:8px 12px;background:#1d1738;border-radius:8px;margin-top:8px}
+ main{width:min(680px,94vw)}
+ h1{font-size:1.5rem;margin:0 0 4px}
+ p.sub{color:#a99ede;margin:0 0 16px;font-size:.92rem}
+ textarea{width:100%;box-sizing:border-box;rows:3;padding:12px;border-radius:10px;border:1px solid #4a3c8f;background:#1d1738;color:#fff;font-family:inherit;font-size:.95rem;resize:vertical}
+ select{margin-top:10px;padding:10px;border-radius:10px;border:1px solid #4a3c8f;background:#1d1738;color:#fff;cursor:pointer}
+ button{margin-top:10px;padding:12px 18px;border:0;border-radius:10px;background:#7c5cff;color:#fff;font-weight:600;cursor:pointer;width:100%;font-size:1rem}
+ button:disabled{opacity:.5;cursor:default}
+ .stage{padding:8px 12px;background:#1d1738;border-radius:8px;margin-top:8px;white-space:pre-wrap;font-size:.9rem}
  video{width:min(300px,80vw);border-radius:14px;margin-top:20px}
  .err{color:#fca5a5}
+ a.dash{color:#b9a8ff;font-size:.9rem}
+ .vlink{display:block;margin-top:6px;color:#b9a8ff;font-size:.9rem}
 </style></head>
 <body><main>
 <h1>ctrl_freak</h1>
-<p>Type any topic → get a 9:16 video for the Qoneqt Global Feed.</p>
-<input id="topic" placeholder="e.g. Why India loves chai">
+<p class="sub">One topic per line — the queue renders a publish-ready 9:16 video for each. <a class="dash" href="/jobs">job dashboard →</a></p>
+<textarea id="topics" rows="3" placeholder="Why India loves chai&#10;5 study hacks for exams"></textarea><br>
 <select id="lang"><option value="English">English</option><option value="Hindi">हिन्दी</option></select>
-<button onclick="go()">Generate</button>
+<button id="go" onclick="go()">Generate</button>
 <div class="stage" id="log">idle</div>
-<div id="player" style="display:none"><video id="vid" controls playsinline></video><br><a id="dl" href="#">Download MP4</a></div>
+<div id="links"></div>
+<div id="player" style="display:none"><video id="vid" controls playsinline></video><br><a id="dl" class="vlink" href="#">Download MP4</a></div>
+</main>
 <script>
+const STAGES=["script","visuals","voice","compose"];
+function fmt(j){
+ return (j.topic||j.id).slice(0,34)+" — "+j.status+" "+
+  "["+STAGES.map(s=>(j.stages&&j.stages[s]?j.stages[s][0].toUpperCase():"p")).join("")+"]"+
+  (j.error?" ✗"+j.error.slice(0,60):"");
+}
 async function go(){
- const t=document.getElementById("topic").value.trim(); if(!t)return;
- const log=document.getElementById("log"); log.textContent="starting job…";
- const r=await fetch("/api/jobs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({topic:t,language:document.getElementById("lang").value})});
- const job=await r.json();
- const timer=setInterval(async()=>{
-  const j=await(await fetch("/api/jobs/"+job.id)).json();
-  log.textContent=j.status+" | "+JSON.stringify(j.stages)+(j.error?" — "+j.error:"");
-  if(j.status==="done"||j.status==="failed"){
-   clearInterval(timer);
-   if(j.status==="done"){document.getElementById("vid").src=j.video_url;document.getElementById("dl").href=j.video_url;document.getElementById("player").style.display="block";}
-  }
- },2000);
+ const lines=document.getElementById("topics").value.split("\n").map(t=>t.trim()).filter(Boolean);
+ if(!lines.length)return;
+ const lang=document.getElementById("lang").value;
+ const btn=document.getElementById("go"); btn.disabled=true; btn.textContent="Working…";
+ const log=document.getElementById("log"); log.textContent="queuing "+lines.length+" job(s)…";
+ document.getElementById("links").textContent="";
+ document.getElementById("player").style.display="none";
+ try{
+  const url=lines.length===1?"/api/jobs":"/api/jobs/batch";
+  const payload=lines.length===1?{topic:lines[0],language:lang}:{topics:lines,language:lang};
+  const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  if(!r.ok){const d=await r.json().catch(()=>({})); throw new Error(d.detail||"server rejected the job");}
+  const data=await r.json();
+  const jobs=Array.isArray(data.jobs)?data.jobs:[data];
+  const ids=jobs.map(j=>j.id);
+  const timer=setInterval(async()=>{
+   let done=0, failed=0, lastVideo=null; const states=[];
+   for(const id of ids){
+    const j=await(await fetch("/api/jobs/"+id)).json();
+    states.push(fmt(j));
+    if(j.status==="done"){done++;lastVideo=j.video_url;}
+    else if(j.status==="failed")failed++;
+   }
+   log.textContent="progress: "+(done+failed)+"/"+ids.length+" finished\n"+states.join("\n");
+   if(done+failed===ids.length){
+    clearInterval(timer); btn.disabled=false; btn.textContent="Generate";
+    if(done>0){
+     document.getElementById("vid").src=lastVideo;
+     document.getElementById("dl").href=lastVideo;
+     document.getElementById("player").style.display="block";
+     const links=document.getElementById("links");
+     for(const id of ids){
+      const j=await(await fetch("/api/jobs/"+id)).json();
+      if(j.status==="done"&&j.video_url){
+       const a=document.createElement("a"); a.href=j.video_url; a.className="vlink";
+       a.textContent="▶ "+(j.topic||id); links.appendChild(a);
+      }
+     }
+    }
+   }
+  },2500);
+ }catch(err){
+  log.textContent="error: "+err.message;
+  btn.disabled=false; btn.textContent="Generate";
+ }
 }
 </script>
-</main></body>
+</body>
 </html>

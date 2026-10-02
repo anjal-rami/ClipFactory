@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>ctrl_freak — jobs dashboard</title>
+<style>
+ body{font-family:Segoe UI,system-ui,sans-serif;background:#17112e;color:#eae6ff;display:flex;justify-content:center;padding:48px 16px}
+ main{width:min(760px,94vw)}
+ h1{font-size:1.4rem;margin:0 0 4px}
+ a{color:#b9a8ff}
+ table{width:100%;border-collapse:collapse;margin-top:16px;font-size:.9rem}
+ th,td{padding:9px 10px;text-align:left;border-bottom:1px solid #2e2557}
+ th{color:#a99ede;font-weight:600}
+ .ok{color:#4ade80}.run{color:#ffc857}.fail{color:#f87171}.q{color:#a99ede}
+ td a{color:#b9a8ff}
+</style></head>
+<body><main>
+<h1>Jobs dashboard</h1>
+<a href="/">← back to generator</a>
+<table>
+ <thead><tr><th>Topic</th><th>Lang</th><th>Status</th><th>Stages</th><th>Video</th></tr></thead>
+ <tbody id="rows"></tbody>
+</table>
+</main>
+<script>
+const STAGES=["script","visuals","voice","compose"];
+function cell(tr,text,cls){
+ const td=document.createElement("td"); td.textContent=text; if(cls)td.className=cls;
+ tr.appendChild(td); return td;
+}
+function render(jobs){
+ const rows=document.getElementById("rows"); rows.textContent="";
+ for(const j of jobs){
+  const tr=document.createElement("tr");
+  cell(tr,j.topic||j.id);
+  cell(tr,j.language||"English");
+  const st={done:"ok",running:"run",queued:"q",failed:"fail"}[j.status]||"q";
+  cell(tr,j.status,st);
+  cell(tr,STAGES.map(s=>(j.stages&&j.stages[s]?j.stages[s][0].toUpperCase():"p")).join(""));
+  if(j.status==="done"&&j.video_url){
+   const a=document.createElement("a"); a.href=j.video_url; a.textContent="watch";
+   const td=document.createElement("td"); td.appendChild(a); tr.appendChild(td);
+  } else cell(tr,"—");
+  rows.appendChild(tr);
+ }
+}
+async function refresh(){
+ try{ const j=await(await fetch("/api/jobs")).json(); render(j.jobs||[]); }catch(e){}
+}
+refresh(); setInterval(refresh,3000);
+</script>
+</body>
+</html>

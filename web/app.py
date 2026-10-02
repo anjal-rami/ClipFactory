@@ -50,6 +50,42 @@ class JobCreate(BaseModel):
     language: str = "English"
 
 
+class JobBatch(BaseModel):
+    topics: list[str]
+    language: str = "English"
+
+
+def _norm_topic(raw: str) -> str:
+    topic = raw.strip()
+    if not topic:
+        raise HTTPException(400, "topic is empty")
+    if len(topic) > 200:
+        raise HTTPException(400, "topic too long (max 200 chars)")
+    return topic
+
+
+def _norm_language(raw: str) -> str:
+    language = (raw or "English").strip().capitalize()
+    if language not in ("English", "Hindi"):
+        raise HTTPException(400, "language must be English or Hindi")
+    return language
+
+
+def _new_job(topic: str, language: str) -> dict:
+    job = {
+        "id": uuid.uuid4().hex[:12],
+        "topic": topic,
+        "language": language,
+        "status": "queued",
+        "stages": {s: "pending" for s in STAGES},
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    JOBS[job["id"]] = job
+    persist(job)
+    Q.put(job["id"])
+    return job
+
+
 def persist(job: dict) -> None:
     (JOBS_DIR / f"{job['id']}.json").write_text(json.dumps(job, indent=2), encoding="utf-8")
 
@@ -106,6 +142,18 @@ def worker() -> None:
 
 @app.on_event("startup")
 def startup() -> None:
+    # Reload persisted jobs so the dashboard survives restarts; anything that
+    # was mid-flight when the server died is marked failed (honest state).
+    for f in JOBS_DIR.glob("*.json"):
+        try:
+            job = json.loads(f.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if job.get("status") in ("queued", "running"):
+            job["status"] = "failed"
+            job["error"] = "server restarted before this job finished"
+            persist(job)
+        JOBS[job["id"]] = job
     threading.Thread(target=worker, daemon=True).start()
 
 
@@ -116,26 +164,26 @@ def index():
 
 @app.post("/api/jobs")
 def create_job(body: JobCreate):
-    topic = body.topic.strip()
-    if not topic:
-        raise HTTPException(400, "topic is empty")
-    if len(topic) > 200:
-        raise HTTPException(400, "topic too long (max 200 chars)")
-    language = body.language.strip().capitalize()
-    if language not in ("English", "Hindi"):
-        raise HTTPException(400, "language must be English or Hindi")
-    job = {
-        "id": uuid.uuid4().hex[:12],
-        "topic": topic,
-        "language": language,
-        "status": "queued",
-        "stages": {s: "pending" for s in STAGES},
-        "created_at": datetime.now().isoformat(timespec="seconds"),
-    }
-    JOBS[job["id"]] = job
-    persist(job)
-    Q.put(job["id"])
-    return job
+    return _new_job(_norm_topic(body.topic), _norm_language(body.language))
+
+
+@app.post("/api/jobs/batch")
+def create_batch(body: JobBatch):
+    if len(body.topics) > 10:
+        raise HTTPException(400, "max 10 topics per batch")
+    language = _norm_language(body.language)
+    return {"jobs": [_new_job(_norm_topic(t), language) for t in body.topics]}
+
+
+@app.get("/api/jobs")
+def list_jobs():
+    jobs = sorted(JOBS.values(), key=lambda j: j.get("created_at", ""), reverse=True)
+    return {"jobs": jobs}
+
+
+@app.get("/jobs")
+def jobs_page():
+    return FileResponse(WEB_DIR / "jobs.html")
 
 
 @app.get("/api/jobs/{job_id}")
