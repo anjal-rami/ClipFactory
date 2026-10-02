@@ -129,7 +129,7 @@ def build_clip(ffmpeg: str, img: Path, audio: Path, out: Path, dur: float, capti
         "-t", f"{dur:.3f}",
         "-r", str(FPS),
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
-        "-c:a", "aac", "-b:a", "128k", "-ar", "44100",
+        "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2",
         str(out),
     ])
 
@@ -167,7 +167,7 @@ def compose(slug: str) -> Path:
     run([
         ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", str(list_file),
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
-        "-c:a", "aac", "-b:a", "128k", "-ar", "44100",
+        "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2",
         str(raw),
     ])
 
@@ -187,7 +187,7 @@ def compose(slug: str) -> Path:
             f"[1:a]volume=0.12,afade=t=out:st={max(total - 1.5, 0):.2f}:d=1.5[bed];"
             f"[0:a][bed]amix=inputs=2:duration=first:dropout_transition=0[a]",
             "-map", "0:v", "-map", "[a]",
-            "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart",
+            "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-ac", "2", "-movflags", "+faststart",
             str(final),
         ])
         raw.unlink()
