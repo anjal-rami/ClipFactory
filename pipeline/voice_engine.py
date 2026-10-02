@@ -30,6 +30,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_ROOT = PROJECT_ROOT / "output" / "videos"
 
 DEFAULT_VOICE = "en-IN-NeerjaNeural"
+VOICE_BY_LANGUAGE = {"english": DEFAULT_VOICE, "hindi": "hi-IN-SwaraNeural"}
 SLACK_SECONDS = 1.5   # accept a take if it fits target + slack
 RATE_STEP = 8         # % faster per retry
 
@@ -55,8 +56,10 @@ def render_scene(text: str, voice: str, target: float, out: Path, max_speedup: i
     return dur, rate, dur > target + SLACK_SECONDS
 
 
-def voice_script(script_path: Path, voice: str = DEFAULT_VOICE, max_speedup: int = 25) -> dict:
+def voice_script(script_path: Path, voice: str | None = None, max_speedup: int = 25) -> dict:
     script = json.loads(script_path.read_text(encoding="utf-8"))
+    language = script.get("language", "English")
+    voice = voice or VOICE_BY_LANGUAGE.get(language.lower(), DEFAULT_VOICE)
     slug = script_path.stem
     scenes = script["scenes"]
     audio_dir = OUTPUT_ROOT / slug / "audio"
@@ -65,6 +68,7 @@ def voice_script(script_path: Path, voice: str = DEFAULT_VOICE, max_speedup: int
     manifest = {
         "slug": slug,
         "voice": voice,
+        "language": language,
         "scenes": [],
     }
     total = 0.0
@@ -107,7 +111,7 @@ def voice_script(script_path: Path, voice: str = DEFAULT_VOICE, max_speedup: int
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="Speak each scene of a script JSON with neural TTS")
     ap.add_argument("script", type=Path, help="script JSON from Task 1")
-    ap.add_argument("--voice", default=DEFAULT_VOICE, help="edge-tts voice name")
+    ap.add_argument("--voice", default=None, help="edge-tts voice; auto-picked from the script's language if omitted")
     ap.add_argument("--max-speedup", type=int, default=25, help="max %% rate-up applied to fit duration")
     args = ap.parse_args()
     if not args.script.is_file():

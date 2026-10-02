@@ -48,12 +48,19 @@ SCHEMA_EXAMPLE = {
 }
 
 
-def build_prompt(topic: str) -> str:
+def build_prompt(topic: str, language: str = "English") -> str:
+    language_rules = ""
+    if language.lower() == "hindi":
+        language_rules = (
+            "\nLANGUAGE RULES:\n"
+            "- Write hook, narration, on_screen_text and cta in natural Hindi (Devanagari script).\n"
+            "- Keep every image_prompt in ENGLISH — image models follow English best.\n"
+        )
     return f"""You are a viral short-form video scriptwriter for the Qoneqt Global Feed,
 a community-first social platform. Write a video script for this topic:
 
 TOPIC: {topic}
-
+{language_rules}
 Rules:
 - Exactly 5 to 6 scenes; total video length between 30 and 45 seconds.
 - The hook must stop the scroll: bold claim, question, or surprise (max 12 words).
@@ -100,8 +107,13 @@ def slugify(text: str) -> str:
     return (re.sub(r"-+", "-", slug).strip("-") or "script")[:50]
 
 
-def generate(topic: str, dry_run: bool = False) -> dict | None:
-    prompt = build_prompt(topic)
+def output_slug(topic: str, language: str = "English") -> str:
+    slug = slugify(topic)
+    return slug if language.lower() == "english" else f"{slug}-{language.lower()}"
+
+
+def generate(topic: str, dry_run: bool = False, language: str = "English") -> dict | None:
+    prompt = build_prompt(topic, language)
 
     if dry_run:
         print("---- PROMPT (dry run, no API call) ----")
@@ -133,8 +145,8 @@ def generate(topic: str, dry_run: bool = False) -> dict | None:
         print("      script passed validation")
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    out_path = OUTPUT_DIR / f"{slugify(topic)}.json"
-    payload = {"topic": topic, "generated_at": datetime.now().isoformat(timespec="seconds"), **script}
+    out_path = OUTPUT_DIR / f"{output_slug(topic, language)}.json"
+    payload = {"topic": topic, "language": language, "generated_at": datetime.now().isoformat(timespec="seconds"), **script}
     out_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
 
     total = sum(s.get("duration_seconds", 0) for s in script.get("scenes", []))
@@ -146,6 +158,13 @@ def generate(topic: str, dry_run: bool = False) -> dict | None:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        raise SystemExit('Usage: python pipeline/script_engine.py "your topic here" [--dry-run]')
-    generate(sys.argv[1], dry_run="--dry-run" in sys.argv)
+    args = sys.argv[1:]
+    language = "English"
+    if "--language" in args:
+        i = args.index("--language")
+        if i + 1 < len(args):
+            language = args[i + 1]
+            del args[i:i + 2]
+    if not args:
+        raise SystemExit('Usage: python pipeline/script_engine.py "your topic here" [--language Hindi] [--dry-run]')
+    generate(args[0], dry_run="--dry-run" in args, language=language)

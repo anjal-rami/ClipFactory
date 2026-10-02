@@ -70,6 +70,11 @@ python pipeline/script_engine.py "AI in Indian education"
 # -> output/scripts/ai-in-indian-education.json
 ```
 
+**Languages:** pick हिन्दी in the web UI (or `--language Hindi` on the CLI) — narration,
+on-screen captions and CTA are generated in Devanagari Hindi, the voiceover switches to
+`hi-IN-SwaraNeural`, and captions render with the bundled Noto Sans Devanagari font.
+Image prompts stay English (image models follow English best).
+
 If the LLM reply is unparseable (reasoning models sometimes ramble past the
 token cap), the script stage auto-retries up to 3× with a larger token budget.
 

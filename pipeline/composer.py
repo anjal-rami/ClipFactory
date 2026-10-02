@@ -16,6 +16,7 @@ Usage:
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -30,6 +31,26 @@ W, H = 720, 1280
 PAD_SECONDS = 0.5      # breathing room after each voice clip
 ZOOM_AMOUNT = 0.10     # 10% Ken Burns travel
 FONT = "C:/Windows/Fonts/arialbd.ttf"
+# Devanagari captions need a font with Hindi glyphs (arialbd has none).
+# Bundled Noto font first: identical rendering on Windows and in the Docker image.
+DEVANAGARI_FONTS = (
+    str(PROJECT_ROOT / "assets" / "fonts" / "NotoSansDevanagari-Regular.ttf"),
+    "C:/Windows/Fonts/Nirmala.ttc",
+    "/usr/share/fonts/truetype/noto/NotoSansDevanagari-Regular.ttf",
+    "/usr/share/fonts/truetype/noto/NotoSansDevanagariUI-Regular.ttf",
+)
+
+
+def has_devanagari(text: str) -> bool:
+    return any("\u0900" <= ch <= "\u097F" for ch in text)
+
+
+def pick_font(text: str) -> str:
+    if has_devanagari(text):
+        for cand in DEVANAGARI_FONTS:
+            if os.path.exists(cand):
+                return cand
+    return FONT
 
 
 def find_ffmpeg(name: str) -> str:
@@ -82,11 +103,12 @@ def build_clip(ffmpeg: str, img: Path, audio: Path, out: Path, dur: float, capti
         z = f"max({1.0 + ZOOM_AMOUNT}-{ZOOM_AMOUNT}*on/{last},1.0)"
 
     caption = esc_drawtext(wrap_text(caption))
+    font_escaped = pick_font(caption).replace("\\", "/").replace(":", "\\:")
     vf = (
         f"scale={W * 2}:{H * 2}:flags=lanczos,"
         f"zoompan=z='{z}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
         f"d={frames}:s={W}x{H}:fps={FPS},"
-        f"drawtext=fontfile='C\\:/Windows/Fonts/arialbd.ttf':text='{caption}':"
+        f"drawtext=fontfile='{font_escaped}':text='{caption}':"
         f"fontsize=54:fontcolor=white:box=1:boxcolor=black@0.45:boxborderw=16:"
         f"text_align=center:line_spacing=8:x=(w-text_w)/2:y=h-text_h-140,format=yuv420p"
     )

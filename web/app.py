@@ -47,6 +47,7 @@ Q = queue.Queue()
 
 class JobCreate(BaseModel):
     topic: str
+    language: str = "English"
 
 
 def persist(job: dict) -> None:
@@ -61,9 +62,10 @@ def set_stage(job: dict, name: str, state: str) -> None:
 def run_job(job: dict) -> None:
     topic = job["topic"]
     try:
+        language = job.get("language", "English")
         set_stage(job, "script", "running")
-        script_engine.generate(topic)
-        slug = script_engine.slugify(topic)
+        script_engine.generate(topic, language=language)
+        slug = script_engine.output_slug(topic, language)
         script_path = OUTPUT_ROOT / "scripts" / f"{slug}.json"
         set_stage(job, "script", "done")
 
@@ -119,9 +121,13 @@ def create_job(body: JobCreate):
         raise HTTPException(400, "topic is empty")
     if len(topic) > 200:
         raise HTTPException(400, "topic too long (max 200 chars)")
+    language = body.language.strip().capitalize()
+    if language not in ("English", "Hindi"):
+        raise HTTPException(400, "language must be English or Hindi")
     job = {
         "id": uuid.uuid4().hex[:12],
         "topic": topic,
+        "language": language,
         "status": "queued",
         "stages": {s: "pending" for s in STAGES},
         "created_at": datetime.now().isoformat(timespec="seconds"),
