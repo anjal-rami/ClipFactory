@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Publish — ctrl_freak</title>
+<style>
+ body{font-family:Segoe UI,system-ui,sans-serif;background:#0B0F14;color:#E6EDF3;display:flex;justify-content:center;padding:48px 16px}
+ main{width:min(720px,94vw)}
+ h1{font-size:1.4rem;margin:0 0 4px}
+ a{color:#14B8A6}
+ p.sub{color:#8B949E;font-size:.9rem;margin:0 0 8px}
+ .row{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px}
+ .col{flex:1;min-width:270px}
+ video{width:100%;border-radius:14px;border:1px solid #1F2A33}
+ .box{background:#131A22;border:1px solid #1F2A33;border-radius:12px;padding:14px;margin-top:14px}
+ .box h3{margin:0 0 8px;font-size:.78rem;color:#8B949E;text-transform:uppercase;letter-spacing:.6px}
+ .box pre{white-space:pre-wrap;font-family:inherit;margin:0;color:#E6EDF3;font-size:.95rem}
+ .copy{margin-top:10px;padding:8px 14px;border:0;border-radius:8px;background:#14B8A6;color:#04231F;font-weight:700;cursor:pointer;font-size:.8rem}
+ #qbtn{display:inline-block;margin-top:18px;padding:12px 20px;border-radius:10px;background:#FFC857;color:#231A00;font-weight:700;text-decoration:none}
+ .err{color:#F87171}
+</style></head>
+<body><main>
+<h1>Publish to Qoneqt</h1>
+<p class="sub" id="meta">loading…</p>
+<div class="row">
+ <div class="col">
+  <video id="vid" controls playsinline></video>
+  <a id="dl" href="#">Download MP4</a>
+ </div>
+ <div class="col" style="flex:1.4">
+  <div class="box"><h3>Caption</h3><pre id="cap"></pre><button class="copy" id="b-cap">Copy caption</button></div>
+  <div class="box"><h3>Hashtags</h3><pre id="tags"></pre><button class="copy" id="b-tags">Copy hashtags</button></div>
+  <div class="box"><h3>Full post — caption + hashtags</h3><pre id="full"></pre><button class="copy" id="b-full">Copy full post</button></div>
+  <a id="qbtn" href="https://www.qoneqt.com" target="_blank" rel="noopener">Open Qoneqt → post it</a>
+ </div>
+</div>
+</main>
+<script>
+const slug=location.pathname.split("/").pop();
+function setCopy(btnId,text){
+ const b=document.getElementById(btnId);
+ b.onclick=async()=>{
+  try{ await navigator.clipboard.writeText(text); b.textContent="Copied ✓"; }
+  catch(e){ b.textContent="Select + Ctrl+C"; }
+  setTimeout(()=>{ b.textContent=b.dataset.label; },1600);
+ };
+ b.dataset.label=b.textContent;
+}
+async function load(){
+ try{
+  const j=await(await fetch("/api/publish/"+slug)).json();
+  document.getElementById("vid").src=j.video_url+"?t="+Date.now();
+  document.getElementById("dl").href=j.video_url+"?t="+Date.now();
+  document.getElementById("cap").textContent=j.caption;
+  document.getElementById("tags").textContent=j.hashtags;
+  document.getElementById("full").textContent=j.full_post;
+  document.getElementById("meta").textContent="Topic: "+j.topic+"  ·  "+j.language+"  ·  video ready";
+  setCopy("b-cap",j.caption); setCopy("b-tags",j.hashtags); setCopy("b-full",j.full_post);
+ }catch(e){
+  const p=document.createElement("p"); p.className="err"; p.textContent="could not load this video — check the URL";
+  document.querySelector("h1").after(p);
+ }
+}
+load();
+</script>
+</body>
+</html>

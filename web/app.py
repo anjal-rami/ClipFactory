@@ -15,6 +15,7 @@ Run from the project root:
 
 import json
 import queue
+import re
 import sys
 import threading
 import time
@@ -211,6 +212,36 @@ def list_jobs():
 @app.get("/jobs")
 def jobs_page():
     return FileResponse(WEB_DIR / "jobs.html")
+
+
+@app.get("/publish/{slug}")
+def publish_page(slug: str):
+    if not re.fullmatch(r"[a-z0-9-]+", slug):
+        raise HTTPException(400, "invalid slug")
+    return FileResponse(WEB_DIR / "publish.html")
+
+
+@app.get("/api/publish/{slug}")
+def publish_pack(slug: str):
+    if not re.fullmatch(r"[a-z0-9-]+", slug):
+        raise HTTPException(400, "invalid slug")
+    path = OUTPUT_ROOT / "scripts" / f"{slug}.json"
+    if not path.is_file():
+        raise HTTPException(404, "no script for this slug")
+    script = json.loads(path.read_text(encoding="utf-8"))
+    caption = "\n".join(p for p in (script.get("hook", ""), script.get("cta", "")) if p)
+    if not caption:
+        caption = script.get("topic", slug)
+    tags = " ".join(script.get("hashtags", []))
+    return {
+        "slug": slug,
+        "topic": script.get("topic", slug),
+        "language": script.get("language", "English"),
+        "video_url": f"/videos/{slug}/final.mp4",
+        "caption": caption,
+        "hashtags": tags,
+        "full_post": f"{caption}\n\n{tags}".strip(),
+    }
 
 
 @app.get("/api/jobs/{job_id}")

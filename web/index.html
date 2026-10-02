@@ -1,23 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="utf-8"><title>ctrl_freak — Qoneqt video pipeline</title>
+<head><meta charset="utf-8"><title>ctrl_freak — AI video pipeline for Qoneqt</title>
 <style>
- body{font-family:Segoe UI,system-ui,sans-serif;background:#17112e;color:#eae6ff;display:flex;justify-content:center;padding:48px 16px}
+ body{font-family:Segoe UI,system-ui,sans-serif;background:#0B0F14;color:#E6EDF3;display:flex;justify-content:center;padding:48px 16px}
  main{width:min(680px,94vw)}
  h1{font-size:1.5rem;margin:0 0 4px}
- p.sub{color:#a99ede;margin:0 0 16px;font-size:.92rem}
- textarea{width:100%;box-sizing:border-box;rows:3;padding:12px;border-radius:10px;border:1px solid #4a3c8f;background:#1d1738;color:#fff;font-family:inherit;font-size:.95rem;resize:vertical}
- select{margin-top:10px;padding:10px;border-radius:10px;border:1px solid #4a3c8f;background:#1d1738;color:#fff;cursor:pointer}
- button{margin-top:10px;padding:12px 18px;border:0;border-radius:10px;background:#7c5cff;color:#fff;font-weight:600;cursor:pointer;width:100%;font-size:1rem}
+ h1 span{color:#14B8A6}
+ p.sub{color:#8B949E;margin:0 0 16px;font-size:.92rem}
+ textarea{width:100%;box-sizing:border-box;padding:12px;border-radius:10px;border:1px solid #1F2A33;background:#131A22;color:#E6EDF3;font-family:inherit;font-size:.95rem;resize:vertical}
+ select{margin-top:10px;padding:10px;border-radius:10px;border:1px solid #1F2A33;background:#131A22;color:#E6EDF3;cursor:pointer}
+ button{margin-top:10px;padding:12px 18px;border:0;border-radius:10px;background:#14B8A6;color:#04231F;font-weight:700;cursor:pointer;width:100%;font-size:1rem}
  button:disabled{opacity:.5;cursor:default}
- .stage{padding:8px 12px;background:#1d1738;border-radius:8px;margin-top:8px;white-space:pre-wrap;font-size:.9rem}
- video{width:min(300px,80vw);border-radius:14px;margin-top:20px}
- .err{color:#fca5a5}
- a.dash{color:#b9a8ff;font-size:.9rem}
- .vlink{display:block;margin-top:6px;color:#b9a8ff;font-size:.9rem}
+ .stage{padding:8px 12px;background:#131A22;border-radius:8px;margin-top:8px;white-space:pre-wrap;font-size:.9rem}
+ video{width:min(320px,80vw);border-radius:14px;margin-top:20px}
+ .err{color:#F87171}
+ a.dash{color:#14B8A6;font-size:.9rem}
+ .vlink{display:block;margin-top:6px;color:#14B8A6;font-size:.9rem}
 </style></head>
 <body><main>
-<h1>ctrl_freak</h1>
+<h1>ctrl<span>_</span>freak</h1>
 <p class="sub">One topic per line — the queue renders a publish-ready 9:16 video for each. <a class="dash" href="/jobs">job dashboard →</a></p>
 <textarea id="topics" rows="3" placeholder="Why India loves chai&#10;5 study hacks for exams"></textarea><br>
 <select id="lang"><option value="English">English</option><option value="Hindi">हिन्दी</option></select>
@@ -67,9 +68,12 @@ async function go(){
      const links=document.getElementById("links");
      for(const id of ids){
       const j=await(await fetch("/api/jobs/"+id)).json();
-      if(j.status==="done"&&j.video_url){
-       const a=document.createElement("a"); a.href=j.video_url+"?t="+Date.now(); a.className="vlink";
-       a.textContent="▶ "+(j.topic||id); links.appendChild(a);
+      if(j.status==="done"&&j.video_url&&j.topic){
+       const slug=j.video_url.split("/")[2];
+       const row=document.createElement("div"); row.style.marginTop="6px";
+       const w=document.createElement("a"); w.href=j.video_url+"?t="+Date.now(); w.className="vlink"; w.textContent="▶ "+j.topic; w.style.display="inline"; w.style.marginRight="14px";
+       const pu=document.createElement("a"); pu.href="/publish/"+slug; pu.className="vlink"; pu.textContent="publish →"; pu.style.display="inline";
+       row.appendChild(w); row.appendChild(pu); links.appendChild(row);
       }
      }
     }

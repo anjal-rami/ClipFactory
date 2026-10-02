@@ -2,19 +2,19 @@
 <html lang="en">
 <head><meta charset="utf-8"><title>ctrl_freak — jobs dashboard</title>
 <style>
- body{font-family:Segoe UI,system-ui,sans-serif;background:#17112e;color:#eae6ff;display:flex;justify-content:center;padding:48px 16px}
- main{width:min(760px,94vw)}
+ body{font-family:Segoe UI,system-ui,sans-serif;background:#0B0F14;color:#E6EDF3;display:flex;justify-content:center;padding:48px 16px}
+ main{width:min(780px,94vw)}
  h1{font-size:1.4rem;margin:0 0 4px}
- a{color:#b9a8ff}
- .stat{background:#1d1738;border-radius:10px;padding:10px 16px;text-align:center}
- .stat b{display:block;font-size:1.25rem;color:#b9a8ff}
- .stat span{font-size:.72rem;color:#a99ede}
+ a{color:#14B8A6}
+ .stat{background:#131A22;border-radius:10px;padding:10px 16px;text-align:center}
+ .stat b{display:block;font-size:1.25rem;color:#14B8A6}
+ .stat span{font-size:.72rem;color:#8B949E}
  #metrics{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
  table{width:100%;border-collapse:collapse;margin-top:16px;font-size:.9rem}
- th,td{padding:9px 10px;text-align:left;border-bottom:1px solid #2e2557}
- th{color:#a99ede;font-weight:600}
- .ok{color:#4ade80}.run{color:#ffc857}.fail{color:#f87171}.q{color:#a99ede}
- td a{color:#b9a8ff}
+ th,td{padding:9px 10px;text-align:left;border-bottom:1px solid #1F2A33}
+ th{color:#8B949E;font-weight:600}
+ .ok{color:#34D399}.run{color:#FFC857}.fail{color:#F87171}.q{color:#8B949E}
+ td a{color:#14B8A6;margin-right:10px}
 </style></head>
 <body><main>
 <h1>Jobs dashboard</h1>
@@ -26,7 +26,7 @@
  <div class="stat"><b id="m-cost">–</b><span>cost / video</span></div>
 </div>
 <table>
- <thead><tr><th>Topic</th><th>Lang</th><th>Status</th><th>Stages</th><th>Video</th></tr></thead>
+ <thead><tr><th>Topic</th><th>Lang</th><th>Status</th><th>Stages</th><th>Actions</th></tr></thead>
  <tbody id="rows"></tbody>
 </table>
 </main>
@@ -35,6 +35,15 @@ const STAGES=["script","visuals","voice","compose"];
 function cell(tr,text,cls){
  const td=document.createElement("td"); td.textContent=text; if(cls)td.className=cls;
  tr.appendChild(td); return td;
+}
+function actionLinks(tr,j){
+ const td=document.createElement("td");
+ const slug=j.video_url?j.video_url.split("/")[2]:null;
+ if(slug){
+  const w=document.createElement("a"); w.href=j.video_url+"?t="+Date.now(); w.textContent="watch"; td.appendChild(w);
+  const p=document.createElement("a"); p.href="/publish/"+slug; p.textContent="publish"; td.appendChild(p);
+ } else td.textContent="—";
+ tr.appendChild(td);
 }
 function render(jobs){
  const rows=document.getElementById("rows"); rows.textContent="";
@@ -45,10 +54,7 @@ function render(jobs){
   const st={done:"ok",running:"run",queued:"q",failed:"fail"}[j.status]||"q";
   cell(tr,j.status,st);
   cell(tr,STAGES.map(s=>(j.stages&&j.stages[s]?j.stages[s][0].toUpperCase():"p")).join(""));
-  if(j.status==="done"&&j.video_url){
-   const a=document.createElement("a"); a.href=j.video_url+"?t="+Date.now(); a.textContent="watch";
-   const td=document.createElement("td"); td.appendChild(a); tr.appendChild(td);
-  } else cell(tr,"—");
+  actionLinks(tr,j);
   rows.appendChild(tr);
  }
 }
