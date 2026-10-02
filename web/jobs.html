@@ -6,6 +6,10 @@
  main{width:min(760px,94vw)}
  h1{font-size:1.4rem;margin:0 0 4px}
  a{color:#b9a8ff}
+ .stat{background:#1d1738;border-radius:10px;padding:10px 16px;text-align:center}
+ .stat b{display:block;font-size:1.25rem;color:#b9a8ff}
+ .stat span{font-size:.72rem;color:#a99ede}
+ #metrics{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
  table{width:100%;border-collapse:collapse;margin-top:16px;font-size:.9rem}
  th,td{padding:9px 10px;text-align:left;border-bottom:1px solid #2e2557}
  th{color:#a99ede;font-weight:600}
@@ -15,6 +19,12 @@
 <body><main>
 <h1>Jobs dashboard</h1>
 <a href="/">← back to generator</a>
+<div id="metrics">
+ <div class="stat"><b id="m-total">–</b><span>jobs total</span></div>
+ <div class="stat"><b id="m-done">–</b><span>videos done</span></div>
+ <div class="stat"><b id="m-avg">–</b><span>avg render</span></div>
+ <div class="stat"><b id="m-cost">–</b><span>cost / video</span></div>
+</div>
 <table>
  <thead><tr><th>Topic</th><th>Lang</th><th>Status</th><th>Stages</th><th>Video</th></tr></thead>
  <tbody id="rows"></tbody>
@@ -43,7 +53,14 @@ function render(jobs){
  }
 }
 async function refresh(){
- try{ const j=await(await fetch("/api/jobs")).json(); render(j.jobs||[]); }catch(e){}
+ try{
+  const j=await(await fetch("/api/jobs")).json(); render(j.jobs||[]);
+  const m=await(await fetch("/api/metrics")).json();
+  document.getElementById("m-total").textContent=m.jobs_total;
+  document.getElementById("m-done").textContent=m.videos_done;
+  document.getElementById("m-avg").textContent=m.avg_render_seconds!=null?m.avg_render_seconds+"s":"—";
+  document.getElementById("m-cost").textContent="₹"+m.infra_cost_per_video_inr;
+ }catch(e){}
 }
 refresh(); setInterval(refresh,3000);
 </script>

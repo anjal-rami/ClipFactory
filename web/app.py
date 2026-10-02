@@ -17,6 +17,7 @@ import json
 import queue
 import sys
 import threading
+import time
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -97,6 +98,7 @@ def set_stage(job: dict, name: str, state: str) -> None:
 
 def run_job(job: dict) -> None:
     topic = job["topic"]
+    started = time.time()
     try:
         language = job.get("language", "English")
         set_stage(job, "script", "running")
@@ -119,14 +121,39 @@ def run_job(job: dict) -> None:
 
         job["status"] = "done"
         job["video_url"] = f"/videos/{slug}/final.mp4"
+        job["render_seconds"] = round(time.time() - started, 1)
+        job["finished_at"] = datetime.now().isoformat(timespec="seconds")
         persist(job)
     except BaseException as e:  # SystemExit from engine config must not kill the worker
         for name, state in job["stages"].items():
             if state == "running":
                 job["stages"][name] = "failed"
         job["status"] = "failed"
+        job["render_seconds"] = round(time.time() - started, 1)
         job["error"] = f"{type(e).__name__}: {str(e)[:300]}"
         persist(job)
+
+
+@app.get("/api/metrics")
+def metrics():
+    jobs = list(JOBS.values())
+    done = [j for j in jobs if j.get("status") == "done"]
+    failed = [j for j in jobs if j.get("status") == "failed"]
+    active = [j for j in jobs if j.get("status") in ("queued", "running")]
+    renders = [j["render_seconds"] for j in done if j.get("render_seconds")]
+    languages = {}
+    for j in jobs:
+        lang = j.get("language", "English")
+        languages[lang] = languages.get(lang, 0) + 1
+    return {
+        "jobs_total": len(jobs),
+        "videos_done": len(done),
+        "jobs_failed": len(failed),
+        "jobs_active": len(active),
+        "avg_render_seconds": round(sum(renders) / len(renders), 1) if renders else None,
+        "languages": languages,
+        "infra_cost_per_video_inr": 0,  # the entire stack runs on free tiers
+    }
 
 
 def worker() -> None:
