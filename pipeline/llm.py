@@ -25,7 +25,7 @@ from urllib.parse import urlsplit
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 DEFAULT_MODELS = {
-    "nvidia": "nvidia/nemotron-3-super-120b-a12b",
+    "nvidia": "nvidia/nemotron-3-ultra-550b-a55b",
     "zai": "GLM-5.3-Flash",
     "openai": "gpt-4o-mini",
     "gemini": "gemini-2.0-flash",
