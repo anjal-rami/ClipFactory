@@ -1,5 +1,5 @@
 """
-Task 5 - Web app + job queue (ctrl_freak pipeline)
+Task 5 - Web app + job queue (ClipFactory pipeline)
 
 Serves the UI and a small JSON API. Jobs run in a background worker thread
 sequentially (FFmpeg rendering is CPU-bound; one worker keeps it predictable).
@@ -42,7 +42,7 @@ STAGES = ("script", "visuals", "voice", "compose")
 VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
 JOBS_DIR.mkdir(parents=True, exist_ok=True)
 
-app = FastAPI(title="ctrl_freak")
+app = FastAPI(title="ClipFactory")
 JOBS = {}
 Q = queue.Queue()
 

@@ -1,5 +1,5 @@
 """
-Task 2 - Visual Engine (ctrl_freak pipeline)
+Task 2 - Visual Engine (ClipFactory pipeline)
 
 Reads a script JSON (Task 1 output) and generates one 9:16 image per scene.
 
@@ -107,7 +107,7 @@ def gen_pollinations(prompt: str, seed: int, timeout: int = 150) -> bytes:
     Minimal params only: model/nologo cause 402 paywall errors."""
     q = urllib.parse.quote(prompt, safe="")
     url = f"https://image.pollinations.ai/prompt/{q}?width={TARGET_W}&height={TARGET_H}&seed={seed}"
-    req = urllib.request.Request(url, headers={"User-Agent": "ctrl-freak-pipeline/0.1"})
+    req = urllib.request.Request(url, headers={"User-Agent": "clipfactory-pipeline/0.1"})
     _guard(url)
     with _OPENER.open(req, timeout=timeout) as resp:
         return resp.read()

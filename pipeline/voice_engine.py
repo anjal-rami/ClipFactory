@@ -1,5 +1,5 @@
 """
-Task 3 - Voice Engine (ctrl_freak pipeline)
+Task 3 - Voice Engine (ClipFactory pipeline)
 
 Reads a script JSON (Task 1) and speaks each scene's narration with a neural
 TTS voice (edge-tts: free, no API key). Each clip is rate-fitted to its

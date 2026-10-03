@@ -1,10 +1,10 @@
-// ctrl_freak — 7-slide challenge deck (fully editable, per required format)
+// ClipFactory — 7-slide challenge deck (fully editable, per required format)
 const pptxgen = require("pptxgenjs");
 
 const p = new pptxgen();
 p.layout = "LAYOUT_WIDE";               // 13.33 x 7.5"
 p.author = "Anjal Rami";
-p.title = "ctrl_freak — AI Video Pipeline for the Qoneqt Global Feed";
+p.title = "ClipFactory — AI Video Pipeline for the Qoneqt Global Feed";
 
 const W = 13.33, M = 0.6, CW = W - 2 * M;
 const BG = "17112E", CARD = "1D1738", PRIMARY = "7C5CFF", PRIMARY_DK = "5A48C2";
@@ -14,7 +14,7 @@ const F = "Segoe UI";
 const T = (s, t, o) => s.addText(t, Object.assign({ fontFace: F, margin: 0 }, o));
 const title = (s, t) => T(s, t, { x: M, y: 0.42, w: CW, h: 0.75, fontSize: 36, bold: true, color: TEXT });
 const footer = (s, n) => {
-  T(s, "ctrl_freak", { x: M, y: 7.08, w: 2, h: 0.3, fontSize: 10, color: MUTED });
+  T(s, "ClipFactory", { x: M, y: 7.08, w: 2, h: 0.3, fontSize: 10, color: MUTED });
   T(s, String(n), { x: W - M - 0.6, y: 7.08, w: 0.6, h: 0.3, fontSize: 10, color: MUTED, align: "right" });
 };
 const chip = (s, x, y, n) => {
@@ -25,7 +25,7 @@ const bu = () => ({ code: "25B8", indent: 12 });
 
 // ---------- Slide 1 · Title ----------
 let s = p.addSlide(); s.background = { color: BG };
-T(s, [{ text: "ctrl", options: { color: TEXT } }, { text: "_", options: { color: PRIMARY } }, { text: "freak", options: { color: TEXT } }],
+T(s, [{ text: "Clip", options: { color: TEXT } }, { text: "Factory", options: { color: PRIMARY } }],
   { x: M, y: 1.7, w: CW, h: 1.1, fontSize: 60, bold: true });
 T(s, "AI Video Pipeline for the Qoneqt Global Feed", { x: M, y: 2.95, w: CW, h: 0.55, fontSize: 24, color: TEXT });
 T(s, "Qoneqt × CTRL FREAK — AI Challenge", { x: M, y: 3.6, w: CW, h: 0.4, fontSize: 15, color: MUTED });
@@ -175,4 +175,4 @@ T(s, "Why this should be selected: every challenge requirement — pipeline, liv
   { x: M, y: 6.15, w: CW, h: 0.7, fontSize: 13.5, color: MUTED });
 footer(s, 7);
 
-p.writeFile({ fileName: "ctrl_freak_presentation.pptx" }).then(() => console.log("written: ctrl_freak_presentation.pptx"));
+p.writeFile({ fileName: "clipfactory_presentation.pptx" }).then(() => console.log("written: clipfactory_presentation.pptx"));

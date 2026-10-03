@@ -1,5 +1,5 @@
 """
-Task 1 - Script & Story Engine (ctrl_freak pipeline, Qoneqt x CTRL FREAK)
+Task 1 - Script & Story Engine (ClipFactory pipeline, Qoneqt x CTRL FREAK)
 
 Turns a topic into a structured video-script JSON:
   hook + scenes (narration, image_prompt, on_screen_text, duration) + CTA.

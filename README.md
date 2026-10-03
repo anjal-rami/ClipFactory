@@ -1,4 +1,4 @@
-# ctrl_freak — AI Video Pipeline for the Qoneqt Global Feed
+# ClipFactory — AI Video Pipeline for the Qoneqt Global Feed
 
 **Qoneqt × CTRL FREAK Challenge entry.** An LLM-powered content pipeline that turns
 any topic, prompt, idea, or trend into a publish-ready vertical video for the

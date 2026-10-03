@@ -1,5 +1,5 @@
 """
-Tiny provider-agnostic LLM client for the ctrl_freak pipeline.
+Tiny provider-agnostic LLM client for the ClipFactory pipeline.
 
 Zero dependencies (stdlib urllib only). Provider auto-detection, first match wins:
 

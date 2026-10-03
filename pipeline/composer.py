@@ -1,5 +1,5 @@
 """
-Task 4 - Composer (ctrl_freak pipeline)
+Task 4 - Composer (ClipFactory pipeline)
 
 Assembles the final 9:16 MP4 from Task 2 images + Task 3 voiceover:
   per scene  -> Ken Burns zoom on the still (alternating in/out)
