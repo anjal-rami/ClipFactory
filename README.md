@@ -99,10 +99,10 @@ python pipeline/composer.py output/scripts/ai-in-indian-education.json
 
 **Task 6 — deploy (Render + Docker):**
 ```bash
-# create an empty repo named ctrl_freak on github.com (no README init), then:
-git remote add origin https://github.com/<you>/ctrl_freak.git
+# create an empty repo named ClipFactory on github.com (no README init), then:
+git remote add origin https://github.com/<you>/ClipFactory.git
 git push -u origin main
-# render.com → sign in with GitHub → New + → Blueprint → pick ctrl_freak
+# render.com → sign in with GitHub → New + → Blueprint → pick ClipFactory
 # → Render reads render.yaml → paste NVIDIA_API_KEY when prompted → Deploy
 ```
 Free-tier notes: the service sleeps after ~15 min idle (first request wakes it,
