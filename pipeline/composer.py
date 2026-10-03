@@ -148,11 +148,24 @@ def compose(slug: str) -> Path:
     clips = []
     for idx in range(1, n + 1):
         scene = script["scenes"][idx - 1]
-        img = Path(image_by_scene[idx]["image"])
-        aud = Path(audio_by_scene[idx]["audio"])
-        if not img.is_file() or not aud.is_file():
-            raise SystemExit(f"scene {idx}: missing {'image' if not img.is_file() else 'audio'} asset")
-        dur = max(audio_by_scene[idx]["duration_seconds"] + PAD_SECONDS, 2.0)
+        img_path = (image_by_scene.get(idx) or {}).get("image")
+        if not img_path or not Path(img_path).is_file():
+            # A failed scene reuses the nearest rendered image so the video still completes.
+            fallback = next(
+                (image_by_scene[k]["image"] for k in sorted(image_by_scene)
+                 if image_by_scene[k].get("image") and Path(image_by_scene[k]["image"]).is_file()),
+                None,
+            )
+            if fallback is None:
+                raise SystemExit("no rendered scene images available at all — re-run the visual stage")
+            print(f"[{idx}/{n}] WARNING: scene {idx} image missing — reusing {Path(fallback).name}")
+            img_path = fallback
+        img = Path(img_path)
+        aud_path = (audio_by_scene.get(idx) or {}).get("audio")
+        if not aud_path or not Path(aud_path).is_file():
+            raise SystemExit(f"scene {idx}: audio missing — re-run the voice stage")
+        aud = Path(aud_path)
+        dur = max((audio_by_scene.get(idx) or {}).get("duration_seconds", scene["duration_seconds"]) + PAD_SECONDS, 2.0)
         caption = script["hook"] if idx == 1 else scene["on_screen_text"]
         clip = video_dir / f"clip-{idx}.mp4"
         print(f"[{idx}/{n}] clip {dur:.1f}s  caption={caption!r}")

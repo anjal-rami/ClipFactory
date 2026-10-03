@@ -110,6 +110,12 @@ def run_job(job: dict) -> None:
 
         set_stage(job, "visuals", "running")
         visual_engine.generate_images(script_path)
+        vis_manifest = OUTPUT_ROOT / "videos" / slug / "visual_manifest.json"
+        if vis_manifest.is_file():
+            vis_data = json.loads(vis_manifest.read_text(encoding="utf-8"))
+            bad = [str(s.get("scene")) for s in vis_data.get("scenes", []) if s.get("status") != "ok"]
+            if bad:
+                job.setdefault("warnings", []).append("scene(s) " + ", ".join(bad) + " used fallback imagery")
         set_stage(job, "visuals", "done")
 
         set_stage(job, "voice", "running")

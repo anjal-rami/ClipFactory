@@ -210,6 +210,27 @@ def generate_images(script_path: Path, backend: str = "auto") -> dict:
             }
         )
 
+    # Second pass: one more try for scenes whose backends all failed — transient
+    # upstream degradation (rate limits, slow endpoints) often clears in seconds.
+    for s in [e for e in manifest["scenes"] if e.get("status") == "failed"]:
+        idx = s["scene"]
+        prompt = scenes[idx - 1].get("image_prompt")
+        if not prompt:
+            continue
+        seed = stable_seed(slug, idx)
+        for name in available:
+            try:
+                raw = BACKENDS[name](prompt, seed)
+                img = to_916(raw)
+                img.save(out_dir / f"scene-{idx}.png", "PNG")
+                s["status"], s["backend"], s["image"] = "ok", name, str(out_dir / f"scene-{idx}.png")
+                s["model"] = "flux.1-dev" if name == "nvidia" else "flux (pollinations)"
+                s["seed"], s["prompt"] = seed, prompt
+                print(f"        scene {idx}: recovered on retry via {name}")
+                break
+            except Exception as e:
+                s.setdefault("errors", []).append(f"retry {name}: {type(e).__name__}: {str(e)[:80]}")
+
     man_path = out_dir / "visual_manifest.json"
     man_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
     ok = sum(1 for s in manifest["scenes"] if s.get("status") == "ok")
