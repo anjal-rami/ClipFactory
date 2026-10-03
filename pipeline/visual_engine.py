@@ -27,6 +27,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import zlib
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
@@ -142,6 +143,37 @@ def stable_seed(slug: str, scene_no: int) -> int:
     return zlib.crc32(f"{slug}-{scene_no}".encode()) % (2**31)
 
 
+DEFAULT_STYLE = "cinematic photograph, rich colour grade, soft dramatic lighting, high detail, consistent look across all scenes"
+
+
+def render_one(idx: int, prompt: str, seed: int, out_dir: Path, available: list) -> dict:
+    """Render one scene image through the backend chain. Thread-safe."""
+    entry = {"scene": idx, "status": "failed", "seed": seed, "errors": []}
+    if not prompt:
+        entry["status"] = "skipped"
+        return entry
+    img_path = out_dir / f"scene-{idx}.png"
+    t0 = time.time()
+    for name in available:
+        try:
+            raw = BACKENDS[name](prompt, seed)
+            img = to_916(raw)
+            img.save(img_path, "PNG")
+            entry.update(
+                status="ok",
+                image=str(img_path),
+                backend=name,
+                model="flux.1-dev" if name == "nvidia" else "flux (pollinations)",
+                seconds=round(time.time() - t0, 1),
+                prompt=prompt,
+            )
+            break
+        except Exception as e:
+            entry["errors"].append(f"{name}: {type(e).__name__}: {str(e)[:120]}")
+            print(f"        [{idx}] {name} failed: {type(e).__name__}: {str(e)[:90]}")
+    return entry
+
+
 def generate_images(script_path: Path, backend: str = "auto") -> dict:
     script = json.loads(script_path.read_text(encoding="utf-8"))
     slug = script_path.stem
@@ -153,83 +185,60 @@ def generate_images(script_path: Path, backend: str = "auto") -> dict:
     if backend != "auto" and backend == "nvidia" and not nvidia_key():
         raise SystemExit("backend=nvidia but NVIDIA_API_KEY is not set (.env)")
 
+    style = script.get("visual_style") or DEFAULT_STYLE
     manifest = {
         "slug": slug,
         "script": str(script_path),
         "created_at": datetime.now().isoformat(timespec="seconds"),
         "target": f"{TARGET_W}x{TARGET_H}",
+        "style": style,
         "scenes": [],
     }
 
-    for idx, scene in enumerate(scenes, 1):
-        prompt = scene.get("image_prompt")
-        style = script.get("visual_style") or "cinematic photograph, rich colour grade, soft dramatic lighting, high detail, consistent look across all scenes"
-        if style:
-            prompt = f"{style}. {prompt}"
-        if not prompt:
-            print(f"[{idx}/{len(scenes)}] scene {idx}: SKIPPED (no image_prompt)")
-            manifest["scenes"].append({"scene": idx, "status": "skipped"})
-            continue
-
-        seed = stable_seed(slug, idx)
-        img_path = out_dir / f"scene-{idx}.png"
-        used = None
-        errors = []
-        t0 = time.time()
-
-        for name in available:
-            try:
-                raw = BACKENDS[name](prompt, seed)
-                img = to_916(raw)
-                img.save(img_path, "PNG")
-                used = name
-                break
-            except Exception as e:
-                errors.append(f"{name}: {type(e).__name__}: {str(e)[:120]}")
-                print(f"        {name} failed: {type(e).__name__}: {str(e)[:100]}")
-
-        if used is None:
-            print(f"[{idx}/{len(scenes)}] scene {idx}: FAILED (all backends)")
-            manifest["scenes"].append({"scene": idx, "status": "failed", "seed": seed, "errors": errors})
-            continue
-
-        kb = img_path.stat().st_size // 1024
-        print(
-            f"[{idx}/{len(scenes)}] scene {idx}: {img_path.name} "
-            f"{TARGET_W}x{TARGET_H} {kb}KB | {used} | seed {seed} | {time.time()-t0:.1f}s"
-        )
-        manifest["scenes"].append(
-            {
-                "scene": idx,
-                "status": "ok",
-                "image": str(img_path),
-                "backend": used,
-                "model": "flux.1-dev" if used == "nvidia" else "flux (pollinations)",
-                "seed": seed,
-                "prompt": prompt,
-            }
-        )
+    # All scenes render CONCURRENTLY — the stage is I/O-bound, so parallel
+    # requests cut wall-clock time by the scene count (safe on 512MB workers).
+    with ThreadPoolExecutor(max_workers=min(len(scenes), 6)) as pool:
+        futures = {}
+        for idx, scene in enumerate(scenes, 1):
+            prompt = scene.get("image_prompt")
+            if style and prompt:
+                prompt = f"{style}. {prompt}"
+            if not prompt:
+                print(f"[{idx}/{len(scenes)}] scene {idx}: SKIPPED (no image_prompt)")
+                futures[pool.submit(render_one, idx, "", 0, out_dir, available)] = idx
+                continue
+            futures[pool.submit(render_one, idx, prompt, stable_seed(slug, idx), out_dir, available)] = idx
+        for fut, idx in futures.items():
+            entry = fut.result()
+            manifest["scenes"].append(entry)
+            if entry["status"] == "ok":
+                kb = Path(entry["image"]).stat().st_size // 1024
+                print(
+                    f"[{idx}/{len(scenes)}] scene {idx}: scene-{idx}.png "
+                    f"{TARGET_W}x{TARGET_H} {kb}KB | {entry['backend']} | seed {entry['seed']} | {entry.get('seconds','?')}s"
+                )
+            elif entry["status"] == "skipped":
+                print(f"[{idx}/{len(scenes)}] scene {idx}: SKIPPED")
+            else:
+                print(f"[{idx}/{len(scenes)}] scene {idx}: FAILED (all backends)")
 
     # Second pass: one more try for scenes whose backends all failed — transient
     # upstream degradation (rate limits, slow endpoints) often clears in seconds.
     for s in [e for e in manifest["scenes"] if e.get("status") == "failed"]:
         idx = s["scene"]
         prompt = scenes[idx - 1].get("image_prompt")
+        if style and prompt:
+            prompt = f"{style}. {prompt}"
         if not prompt:
             continue
         seed = stable_seed(slug, idx)
-        for name in available:
-            try:
-                raw = BACKENDS[name](prompt, seed)
-                img = to_916(raw)
-                img.save(out_dir / f"scene-{idx}.png", "PNG")
-                s["status"], s["backend"], s["image"] = "ok", name, str(out_dir / f"scene-{idx}.png")
-                s["model"] = "flux.1-dev" if name == "nvidia" else "flux (pollinations)"
-                s["seed"], s["prompt"] = seed, prompt
-                print(f"        scene {idx}: recovered on retry via {name}")
-                break
-            except Exception as e:
-                s.setdefault("errors", []).append(f"retry {name}: {type(e).__name__}: {str(e)[:80]}")
+        result = render_one(idx, prompt, seed, out_dir, available)
+        if result["status"] == "ok":
+            s.update(status="ok", image=result["image"], backend=result["backend"],
+                     model=result["model"], seed=seed, prompt=prompt)
+            print(f"        scene {idx}: recovered on retry via {result['backend']}")
+        else:
+            s.setdefault("errors", []).extend(result.get("errors", []))
 
     man_path = out_dir / "visual_manifest.json"
     man_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
